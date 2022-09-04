@@ -3,6 +3,8 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
+#include <spdlog/spdlog.h>
+
 
 // Dummy main loop callback for a single shot.
 extern "C" void onMainLoop()

@@ -266,21 +266,21 @@ private:
 
 private:
 
-  NCollection_IndexedDataMap<TCollection_AsciiString, Handle(AIS_InteractiveObject)> myObjects; //!< map of named objects
+    NCollection_IndexedDataMap<TCollection_AsciiString, Handle(AIS_InteractiveObject)> myObjects; //!< map of named objects
 
-  NCollection_DataMap<unsigned int, Aspect_VKey> myNavKeyMap; //!< map of Hot-Key (key+modifiers) to Action
+    NCollection_DataMap<unsigned int, Aspect_VKey> myNavKeyMap; //!< map of Hot-Key (key+modifiers) to Action
 
-  Handle(AIS_InteractiveContext) myContext;          //!< interactive context
-  Handle(V3d_View)               myView;             //!< 3D view
-  Handle(Prs3d_TextAspect)       myTextStyle;        //!< text style for OSD elements
-  Handle(AIS_ViewCube)           myViewCube;         //!< view cube object
-  TCollection_AsciiString        myCanvasId;         //!< canvas element id on HTML page
-  Graphic3d_Vec2i                myWinSizeOld;
-  float                          myDevicePixelRatio; //!< device pixel ratio for handling high DPI displays
-  unsigned int                   myUpdateRequests;   //!< counter for unhandled update requests
+    Handle(AIS_InteractiveContext) myContext;          //!< interactive context
+    Handle(V3d_View)               myView;             //!< 3D view
+    Handle(Prs3d_TextAspect)       myTextStyle;        //!< text style for OSD elements
+    Handle(AIS_ViewCube)           myViewCube;         //!< view cube object
+    TCollection_AsciiString        myCanvasId;         //!< canvas element id on HTML page
+    Graphic3d_Vec2i                myWinSizeOld;
+    float                          myDevicePixelRatio; //!< device pixel ratio for handling high DPI displays
+    unsigned int                   myUpdateRequests;   //!< counter for unhandled update requests
 
-  TopAbs_ShapeEnum m_SelectionMode;
-  static bool m_bShowScale;
+    TopAbs_ShapeEnum m_SelectionMode;
+    static bool m_bShowScale;
 };
 
 #endif // _WasmOcctView_HeaderFile

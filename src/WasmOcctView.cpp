@@ -112,14 +112,10 @@ namespace
 // Initialize static variable
 bool WasmOcctView::m_bShowScale = false;
 
-// ================================================================
-// Function : Instance
-// Purpose  :
-// ================================================================
 WasmOcctView& WasmOcctView::Instance()
 {
-  static WasmOcctView aViewer;
-  return aViewer;
+    static WasmOcctView aViewer;
+    return aViewer;
 }
 
 // ================================================================
@@ -1215,10 +1211,6 @@ void WasmOcctView::displayGround (bool theToShow)
   aViewer.UpdateView();
 }
 
-// ================================================================
-// Function : Show Scale
-// Purpose  :
-// ================================================================
 void WasmOcctView::showScale()
 {
     m_bShowScale = !m_bShowScale;
@@ -1226,15 +1218,14 @@ void WasmOcctView::showScale()
     Graphic3d_GraduatedTrihedron graduated = Graphic3d_GraduatedTrihedron("Arial", Font_FA_Bold, 15, "Arial", Font_FA_Regular, 15);
 
     if (m_bShowScale) {
-      WasmOcctView::Instance().View()->GraduatedTrihedronDisplay(graduated);
-      WasmOcctView::Instance().View()->Redraw();
+        WasmOcctView::Instance().View()->GraduatedTrihedronDisplay(graduated);
+        WasmOcctView::Instance().View()->Redraw();
     }
     else {
-      WasmOcctView::Instance().View()->GraduatedTrihedronErase();
-      WasmOcctView::Instance().View()->Redraw();
+        WasmOcctView::Instance().View()->GraduatedTrihedronErase();
+        WasmOcctView::Instance().View()->Redraw();
     }
 }
-
 
 // Module exports
 EMSCRIPTEN_BINDINGS(OccViewerModule) {
