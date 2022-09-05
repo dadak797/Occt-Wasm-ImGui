@@ -19,6 +19,7 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 
+#include "Common.hpp"
 #include "WasmOcctView.hpp"
 
 #include <AIS_Shape.hxx>
@@ -33,7 +34,9 @@
 #include <Prs3d_DatumAspect.hxx>
 #include <Prs3d_ToolCylinder.hxx>
 #include <Prs3d_ToolDisk.hxx>
-#include <Wasm_Window.hxx>
+//#include <Wasm_Window.hxx>
+#include "GlfwOcctWindow.hpp"
+#include <OpenGl_Context.hxx>
 
 #include <BRep_Builder.hxx>
 #include <BRepBndLib.hxx>
@@ -54,8 +57,13 @@
 
 #include "AppManager.hpp"
 
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
 
 #define THE_CANVAS_ID "canvas"
+//#define THE_CANVAS_ID "occtViewerCanvas"
 
 namespace
 {
@@ -125,7 +133,8 @@ WasmOcctView& WasmOcctView::Instance()
 WasmOcctView::WasmOcctView()
 : myDevicePixelRatio (1.0f),
   myUpdateRequests (0),
-    m_SelectionMode(TopAbs_SOLID)
+    m_SelectionMode(TopAbs_SOLID),
+    m_ImGuiContext(nullptr)
 {
   addActionHotKeys (Aspect_VKey_NavForward,        Aspect_VKey_W, Aspect_VKey_W | Aspect_VKeyFlags_SHIFT);
   addActionHotKeys (Aspect_VKey_NavBackward ,      Aspect_VKey_S, Aspect_VKey_S | Aspect_VKeyFlags_SHIFT);
@@ -157,6 +166,7 @@ WasmOcctView::WasmOcctView()
 // ================================================================
 WasmOcctView::~WasmOcctView()
 {
+    cleanup();
 }
 
 // ================================================================
@@ -181,6 +191,18 @@ void WasmOcctView::run()
   //emscripten_set_main_loop (redrawView, 60, 1);
   //emscripten_set_main_loop (redrawView, -1, 1);
   EM_ASM(Module['noExitRuntime'] = true);
+}
+
+void WasmOcctView::cleanup()
+{
+    // cleanup ImGui
+		ImGui_ImplOpenGL3_DestroyFontsTexture();
+    ImGui_ImplOpenGL3_DestroyDeviceObjects();
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext(m_ImGuiContext);
+
+    myView->Remove();
 }
 
 // ================================================================
@@ -295,6 +317,29 @@ void WasmOcctView::initPixelScaleRatio()
   }
 }
 
+
+void WasmOcctView::s_onWindowResized(GLFWwindow* window, int width, int height)
+{
+    if (width == 0 || height == 0) return;
+    WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
+    SPDLOG_INFO("Resize Event");
+}
+
+void WasmOcctView::s_onMouseButton(GLFWwindow* window, int button, int action, int mods)
+{
+		ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
+	  WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
+	  SPDLOG_INFO("Mouse Button Event");
+}
+
+void WasmOcctView::s_onMouseMove(GLFWwindow* window, double thePosX, double thePosY)
+{
+		ImGui_ImplGlfw_CursorPosCallback(window, thePosX, thePosY);
+	  WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
+	  SPDLOG_INFO("Mouse Move Event");
+}
+
+
 // ================================================================
 // Function : initViewer
 // Purpose  :
@@ -337,8 +382,11 @@ bool WasmOcctView::initViewer()
     }
   }
 
-  Handle(Wasm_Window) aWindow = new Wasm_Window (THE_CANVAS_ID);
+  //Handle(Wasm_Window) aWindow = new Wasm_Window (THE_CANVAS_ID);
+  Handle(GlfwOcctWindow) aWindow = new GlfwOcctWindow(THE_CANVAS_ID);  // by skpark
   aWindow->Size (myWinSizeOld.x(), myWinSizeOld.y());
+
+  glfwSetWindowUserPointer(aWindow->GetGlfwWindow(), this);  // by skpark
 
   myTextStyle = new Prs3d_TextAspect();
   myTextStyle->SetFont (Font_NOF_ASCII_MONO);
@@ -367,6 +415,10 @@ bool WasmOcctView::initViewer()
 
   dumpGlInfo (false);
 
+    m_GLContext = aDriver->GetSharedContext();  // by skpark
+    if (!aWindow->IsMapped()) aWindow->Map();  // by skpark
+    myView->MustBeResized();  // by skpark
+
   myContext = new AIS_InteractiveContext (aViewer);
   initPixelScaleRatio();
 
@@ -393,6 +445,25 @@ bool WasmOcctView::initViewer()
 	myContext->DefaultDrawer()->SetFaceBoundaryDraw(Standard_True);
 	myContext->SetDisplayMode(AIS_Shaded, Standard_False);
 
+    // window callback
+    glfwSetWindowSizeCallback(aWindow->GetGlfwWindow(), WasmOcctView::s_onWindowResized);
+    // mouse callback
+    glfwSetMouseButtonCallback(aWindow->GetGlfwWindow(), WasmOcctView::s_onMouseButton);
+    glfwSetCursorPosCallback(aWindow->GetGlfwWindow(), WasmOcctView::s_onMouseMove);
+
+    // ImGui Initialization
+    m_ImGuiContext = ImGui::CreateContext();
+    ImGui::SetCurrentContext(m_ImGuiContext);
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::StyleColorsLight();
+    io.Fonts->AddFontFromFileTTF("resources/fonts/Consolas.ttf", 13.0f);
+
+    ImGui_ImplGlfw_InitForOpenGL(aWindow->GetGlfwWindow(), false);
+
+    ImGui_ImplOpenGL3_Init();
+    ImGui_ImplOpenGL3_CreateFontsTexture();
+    ImGui_ImplOpenGL3_CreateDeviceObjects();
 
   return true;
 }
@@ -452,6 +523,7 @@ void WasmOcctView::UpdateView()
   if (!myView.IsNull())
   {
     myView->Invalidate();
+
     // queue next onRedrawView()/redrawView()
     ProcessInput();
   }
@@ -463,10 +535,31 @@ void WasmOcctView::UpdateView()
 // ================================================================
 void WasmOcctView::redrawView()
 {
-  if (!myView.IsNull())
-  {
-    FlushViewEvents (myContext, myView, true);
-  }
+    if (!myView.IsNull())
+    {
+        m_GLContext->MakeCurrent();  // by skpark
+        myView->Invalidate();  // by skpark
+
+        ImGui_ImplGlfw_NewFrame();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui::NewFrame();
+
+
+        if (ImGui::Begin("my first ImGui window")) {
+            ImGui::Text("This is first text...");
+        }
+        ImGui::End();
+
+        ImGui::ShowDemoWindow();
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        m_GLContext->SwapBuffers();  // by skpark
+
+        //FlushViewEvents (myContext, myView, true);
+    }
+    glfwPollEvents();
 }
 
 // ================================================================
@@ -499,7 +592,7 @@ EM_BOOL WasmOcctView::onResizeEvent (int theEventType, const EmscriptenUiEvent* 
     return EM_FALSE;
   }
 
-  Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+  Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
   Graphic3d_Vec2i aWinSizeNew;
   aWindow->DoResize();
   aWindow->Size (aWinSizeNew.x(), aWinSizeNew.y());
@@ -550,7 +643,7 @@ EM_BOOL WasmOcctView::onMouseEvent (int theEventType, const EmscriptenMouseEvent
       return EM_FALSE;
     }
 
-    Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+    Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
 
     if (theEventType == EMSCRIPTEN_EVENT_MOUSEUP) {
         Standard_Integer btnNumber = (Standard_Integer)anEvent.button;
@@ -596,7 +689,7 @@ EM_BOOL WasmOcctView::onWheelEvent (int theEventType, const EmscriptenWheelEvent
     return EM_FALSE;
   }
 
-  Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+  Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
   return aWindow->ProcessWheelEvent (*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
 
@@ -611,7 +704,7 @@ EM_BOOL WasmOcctView::onTouchEvent (int theEventType, const EmscriptenTouchEvent
     return EM_FALSE;
   }
 
-  Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+  Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
   return aWindow->ProcessTouchEvent (*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
 
@@ -666,7 +759,7 @@ EM_BOOL WasmOcctView::onFocusEvent (int theEventType, const EmscriptenFocusEvent
     return EM_FALSE;
   }
 
-  Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+  Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
   return aWindow->ProcessFocusEvent (*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
 
@@ -682,7 +775,7 @@ EM_BOOL WasmOcctView::onKeyDownEvent (int theEventType, const EmscriptenKeyboard
     return EM_FALSE;
   }
 
-  Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+  Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
   return aWindow->ProcessKeyEvent (*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
 
@@ -724,7 +817,7 @@ EM_BOOL WasmOcctView::onKeyUpEvent (int theEventType, const EmscriptenKeyboardEv
     return EM_FALSE;
   }
 
-  Handle(Wasm_Window) aWindow = Handle(Wasm_Window)::DownCast (myView->Window());
+  Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
   return aWindow->ProcessKeyEvent (*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
 

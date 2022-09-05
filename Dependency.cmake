@@ -28,6 +28,7 @@ add_library(imgui
     ${IMGUI_SOURCE_DIR}/imgui.cpp
     ${IMGUI_SOURCE_DIR}/imgui_impl_glfw.cpp
     ${IMGUI_SOURCE_DIR}/imgui_impl_opengl3.cpp
+    ${IMGUI_SOURCE_DIR}/imgui_demo.cpp
 )
 target_include_directories(imgui PRIVATE ${DEP_INCLUDE_DIR})
 set(DEP_INCLUDE_DIR ${DEP_INCLUDE_DIR} ${IMGUI_SOURCE_DIR})

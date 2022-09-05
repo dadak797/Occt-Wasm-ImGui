@@ -31,6 +31,9 @@
 
 
 class AIS_ViewCube;
+class OpenGl_Context;
+struct ImGuiContext;
+struct GLFWwindow;
 
 
 //! Sample class creating 3D Viewer within Emscripten canvas.
@@ -239,6 +242,10 @@ private:
   static EM_BOOL onFocusCallback (int theEventType, const EmscriptenFocusEvent* theEvent, void* theView)
   { return ((WasmOcctView* )theView)->onFocusEvent (theEventType, theEvent); }
 
+	static void s_onMouseMove(GLFWwindow* window, double thePosX, double thePosY);
+	static void s_onWindowResized(GLFWwindow* window, int width, int height);
+	static void s_onMouseButton(GLFWwindow* window, int button, int action, int mods);
+
 private:
 
   //! Register hot-keys for specified Action.
@@ -264,6 +271,8 @@ private:
   //! Handle hot-key.
   bool processKeyPress (Aspect_VKey theKey);
 
+  void cleanup();
+
 private:
 
     NCollection_IndexedDataMap<TCollection_AsciiString, Handle(AIS_InteractiveObject)> myObjects; //!< map of named objects
@@ -281,6 +290,9 @@ private:
 
     TopAbs_ShapeEnum m_SelectionMode;
     static bool m_bShowScale;
+
+    Handle(OpenGl_Context) m_GLContext;
+    ImGuiContext* m_ImGuiContext;
 };
 
 #endif // _WasmOcctView_HeaderFile
