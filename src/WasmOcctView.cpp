@@ -54,6 +54,7 @@
 #include <XCAFDoc_ShapeTool.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
 #include <TopTools_HSequenceOfShape.hxx>
+#include <BRepPrimAPI_MakeBox.hxx>
 
 #include "AppManager.hpp"
 
@@ -61,9 +62,6 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-
-#define THE_CANVAS_ID "canvas"
-//#define THE_CANVAS_ID "occtViewerCanvas"
 
 namespace
 {
@@ -321,22 +319,23 @@ void WasmOcctView::initPixelScaleRatio()
 void WasmOcctView::s_onWindowResized(GLFWwindow* window, int width, int height)
 {
     if (width == 0 || height == 0) return;
-    WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
-    SPDLOG_INFO("Resize Event");
+    SPDLOG_INFO("framebuffer size changed: ({} x {})", width, height);
+    //WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
+    glViewport(0, 0, width, height);
 }
 
 void WasmOcctView::s_onMouseButton(GLFWwindow* window, int button, int action, int mods)
 {
 		ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 	  WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
-	  SPDLOG_INFO("Mouse Button Event");
+	  SPDLOG_INFO("Mouse Button Event: {}", button);
 }
 
 void WasmOcctView::s_onMouseMove(GLFWwindow* window, double thePosX, double thePosY)
 {
 		ImGui_ImplGlfw_CursorPosCallback(window, thePosX, thePosY);
 	  WasmOcctView* view = reinterpret_cast<WasmOcctView*>(glfwGetWindowUserPointer(window));
-	  SPDLOG_INFO("Mouse Move Event");
+	  //SPDLOG_INFO("Mouse Move Event");
 }
 
 
@@ -457,7 +456,7 @@ bool WasmOcctView::initViewer()
 
     ImGuiIO& io = ImGui::GetIO();
     ImGui::StyleColorsLight();
-    io.Fonts->AddFontFromFileTTF("resources/fonts/Consolas.ttf", 13.0f);
+    io.Fonts->AddFontFromFileTTF("resources/fonts/Consolas.ttf", 16.0f);
 
     ImGui_ImplGlfw_InitForOpenGL(aWindow->GetGlfwWindow(), false);
 
@@ -537,6 +536,8 @@ void WasmOcctView::redrawView()
 {
     if (!myView.IsNull())
     {
+        FlushViewEvents (myContext, myView, true); 
+
         m_GLContext->MakeCurrent();  // by skpark
         myView->Invalidate();  // by skpark
 
@@ -547,6 +548,21 @@ void WasmOcctView::redrawView()
 
         if (ImGui::Begin("my first ImGui window")) {
             ImGui::Text("This is first text...");
+            if (ImGui::Button("Make Box")) {
+						    MakeBox(m_Location);
+            }
+            ImGui::DragFloat3("Box location", m_Location);
+            ImGui::Separator();
+            if (ImGui::Button("Show Scale")) {
+                showScale();
+            }
+            ImGui::Separator();
+            if (ImGui::Button("Perspective")) {
+                projectionPerspective();
+            }
+            if (ImGui::Button("Orthographic")) {
+                projectionOrthographic();
+            }
         }
         ImGui::End();
 
@@ -555,9 +571,7 @@ void WasmOcctView::redrawView()
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-        m_GLContext->SwapBuffers();  // by skpark
-
-        //FlushViewEvents (myContext, myView, true);
+        m_GLContext->SwapBuffers();  // by skpark       
     }
     glfwPollEvents();
 }
@@ -578,6 +592,16 @@ void WasmOcctView::handleViewRedraw (const Handle(AIS_InteractiveContext)& theCt
     emscripten_async_call (onRedrawView, this, 0);
   }
 }
+
+// EM_BOOL WasmOcctView::onResizeCallback(int theEventType, const EmscriptenUiEvent* theEvent, void* theView)
+// {
+//     int width, height;
+//     emscripten_get_canvas_element_size(THE_CANVAS_ID, &width, &height);
+//     Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast(((WasmOcctView*)theView)->Window());
+//     GLFWwindow* window = aWindow->GetGlfwWindow();
+//     glViewPort(width, height);
+//     return ((WasmOcctView*)theView)->onResizeEvent(theEventType, theEvent); 
+// }
 
 // ================================================================
 // Function : onResizeEvent
@@ -643,7 +667,7 @@ EM_BOOL WasmOcctView::onMouseEvent (int theEventType, const EmscriptenMouseEvent
       return EM_FALSE;
     }
 
-    Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast (myView->Window());
+    Handle(GlfwOcctWindow) aWindow = Handle(GlfwOcctWindow)::DownCast(myView->Window());
 
     if (theEventType == EMSCRIPTEN_EVENT_MOUSEUP) {
         Standard_Integer btnNumber = (Standard_Integer)anEvent.button;
@@ -662,19 +686,27 @@ EM_BOOL WasmOcctView::onMouseEvent (int theEventType, const EmscriptenMouseEvent
         }
     }
 
-  if (theEventType == EMSCRIPTEN_EVENT_MOUSEMOVE
-   || theEventType == EMSCRIPTEN_EVENT_MOUSEUP)
-  {
-    // these events are bound to EMSCRIPTEN_EVENT_TARGET_WINDOW, and coordinates should be converted
-    jsUpdateBoundingClientRect();
-    EmscriptenMouseEvent anEvent = *theEvent;
-    anEvent.targetX -= jsGetBoundingClientLeft();
-    anEvent.targetY -= jsGetBoundingClientTop();
-    aWindow->ProcessMouseEvent (*this, theEventType, &anEvent);
-    return EM_FALSE;
-  }
+    if (theEventType == EMSCRIPTEN_EVENT_MOUSEMOVE
+    || theEventType == EMSCRIPTEN_EVENT_MOUSEUP)
+    {
+        // these events are bound to EMSCRIPTEN_EVENT_TARGET_WINDOW, and coordinates should be converted
+        jsUpdateBoundingClientRect();
+        EmscriptenMouseEvent anEvent = *theEvent;
+        anEvent.targetX -= jsGetBoundingClientLeft();
+        anEvent.targetY -= jsGetBoundingClientTop();
+        aWindow->ProcessMouseEvent(*this, theEventType, &anEvent);
+        return EM_FALSE;
+    }
 
-  return aWindow->ProcessMouseEvent (*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
+    // ImGuiIO& io = ImGui::GetIO();  
+    // if (!io.WantCaptureMouse) {  // Prevent mouse action when ImGui clicked
+        // return aWindow->ProcessMouseEvent(*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
+    // }
+    // else {
+    //     return EM_TRUE;
+    // }
+
+  return aWindow->ProcessMouseEvent(*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
 
 // ================================================================
@@ -1302,6 +1334,16 @@ void WasmOcctView::displayGround (bool theToShow)
   aViewer.Context()->Display (aGroundPrs, AIS_Shaded, -1, false);
   aGroundPrs->SetInfiniteState (true);
   aViewer.UpdateView();
+}
+
+void WasmOcctView::MakeBox(const float* location)
+{
+		Handle(AIS_Shape) box = new AIS_Shape(BRepPrimAPI_MakeBox(50, 50, 50).Shape());
+		gp_Trsf trsf;
+		gp_Vec trans(location[0], location[1], location[2]);
+		trsf.SetTranslation(trans);
+		box->SetLocalTransformation(trsf);
+		myContext->Display(box, Standard_False);
 }
 
 void WasmOcctView::showScale()

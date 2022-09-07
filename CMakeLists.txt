@@ -54,6 +54,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${DEP_LIBS})
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC
     PROJECT_NAME="${PROJECT_NAME}"
+    THE_CANVAS_ID="canvas"
 )
 
 add_dependencies(${PROJECT_NAME} ${DEP_LIST})

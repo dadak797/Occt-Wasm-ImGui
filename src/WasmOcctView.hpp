@@ -246,6 +246,9 @@ private:
 	static void s_onWindowResized(GLFWwindow* window, int width, int height);
 	static void s_onMouseButton(GLFWwindow* window, int button, int action, int mods);
 
+  float m_Location[3] { 0.0f, 0.0f, 0.0f };
+  void MakeBox(const float* location);
+
 private:
 
   //! Register hot-keys for specified Action.

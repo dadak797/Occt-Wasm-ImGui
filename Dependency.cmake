@@ -31,6 +31,9 @@ add_library(imgui
     ${IMGUI_SOURCE_DIR}/imgui_demo.cpp
 )
 target_include_directories(imgui PRIVATE ${DEP_INCLUDE_DIR})
+target_compile_definitions(imgui PUBLIC
+    THE_CANVAS_ID="canvas"
+)
 set(DEP_INCLUDE_DIR ${DEP_INCLUDE_DIR} ${IMGUI_SOURCE_DIR})
 set(DEP_LIST ${DEP_LIST} imgui)
 set(DEP_LIBS ${DEP_LIBS} imgui)
