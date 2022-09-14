@@ -1,5 +1,7 @@
 {
   "files.associations": {
-    "*.lxx": "cpp"
+    "*.lxx": "cpp",
+    "bitset": "cpp",
+    "set": "cpp"
   }
 }

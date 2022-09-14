@@ -181,7 +181,7 @@ void WasmOcctView::run()
     return;
   }
 
-  myView->MustBeResized();
+  //myView->MustBeResized();
   myView->Redraw();
 
   // There is no infinite message loop, main() will return from here immediately.
@@ -383,7 +383,7 @@ bool WasmOcctView::initViewer()
 
   //Handle(Wasm_Window) aWindow = new Wasm_Window (THE_CANVAS_ID);
   Handle(GlfwOcctWindow) aWindow = new GlfwOcctWindow(THE_CANVAS_ID);  // by skpark
-  aWindow->Size (myWinSizeOld.x(), myWinSizeOld.y());
+  //aWindow->Size (myWinSizeOld.x(), myWinSizeOld.y());
 
   glfwSetWindowUserPointer(aWindow->GetGlfwWindow(), this);  // by skpark
 
@@ -408,7 +408,6 @@ bool WasmOcctView::initViewer()
   myView->ChangeRenderingParams().StatsTextAspect = myTextStyle->Aspect();
   myView->ChangeRenderingParams().StatsTextHeight = (int )myTextStyle->Height();
   myView->SetWindow (aWindow);
-
   myView->SetBgGradientColors(Quantity_Color(255./255., 255./255., 255./255., Quantity_TOC_RGB), 
                               Quantity_Color(107./ 255., 140./ 255., 222./ 255., Quantity_TOC_RGB), Aspect_GFM_VER);
 
@@ -492,6 +491,7 @@ void WasmOcctView::initDemoScene()
   myViewCube->SetAutoStartAnimation (true);
   myContext->Display (myViewCube, false);
 
+  onRedrawView(this);
   // Build with "--preload-file MySampleFile.brep" option to load some shapes here.
 }
 
@@ -536,10 +536,10 @@ void WasmOcctView::redrawView()
 {
     if (!myView.IsNull())
     {
-        FlushViewEvents (myContext, myView, true); 
+        FlushViewEvents(myContext, myView, true); 
 
         m_GLContext->MakeCurrent();  // by skpark
-        myView->Invalidate();  // by skpark
+        //myView->Invalidate();  // by skpark
 
         ImGui_ImplGlfw_NewFrame();
         ImGui_ImplOpenGL3_NewFrame();
@@ -557,12 +557,27 @@ void WasmOcctView::redrawView()
                 showScale();
             }
             ImGui::Separator();
+            ImGui::Text("View Mode");
             if (ImGui::Button("Perspective")) {
                 projectionPerspective();
             }
             if (ImGui::Button("Orthographic")) {
                 projectionOrthographic();
             }
+            // ImGui::Separator();
+            // ImGui::Text("Selection Mode");
+            // if (ImGui::Button("Vertex")) {
+            //     selectVertexMode();
+            // }
+            // if (ImGui::Button("Edge")) {
+            //     selectEdgeMode();
+            // }
+            // if (ImGui::Button("Face")) {
+            //     selectFaceMode();
+            // }
+            // if (ImGui::Button("Solid")) {
+            //     selectSolidMode();
+            // }
         }
         ImGui::End();
 
@@ -585,11 +600,12 @@ void WasmOcctView::handleViewRedraw (const Handle(AIS_InteractiveContext)& theCt
 {
   myUpdateRequests = 0;
   AIS_ViewController::handleViewRedraw (theCtx, theView);
+  setAskNextFrame();
   if (myToAskNextFrame)
   {
     // ask more frames
     ++myUpdateRequests;
-    emscripten_async_call (onRedrawView, this, 0);
+    emscripten_async_call(onRedrawView, this, 0);
   }
 }
 
@@ -1343,7 +1359,7 @@ void WasmOcctView::MakeBox(const float* location)
 		gp_Vec trans(location[0], location[1], location[2]);
 		trsf.SetTranslation(trans);
 		box->SetLocalTransformation(trsf);
-		myContext->Display(box, Standard_False);
+		myContext->Display(box, Standard_True);
 }
 
 void WasmOcctView::showScale()

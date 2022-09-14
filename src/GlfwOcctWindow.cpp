@@ -47,6 +47,7 @@ GlfwOcctWindow::GlfwOcctWindow (const TCollection_AsciiString& theCanvasId,
 #if defined(__EMSCRIPTEN__)
   myDevicePixelRatio = emscripten_get_device_pixel_ratio();
   emscripten_get_canvas_element_size (myCanvasId.ToCString(), &mySize.x(), &mySize.y());
+  SPDLOG_INFO("Canvas Size: {}, {}", mySize.x(), mySize.y());
   if (myToScaleBacking)
   {
     myDevicePixelRatio = emscripten_get_device_pixel_ratio();
