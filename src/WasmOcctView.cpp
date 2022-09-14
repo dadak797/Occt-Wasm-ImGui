@@ -453,9 +453,14 @@ bool WasmOcctView::initViewer()
     m_ImGuiContext = ImGui::CreateContext();
     ImGui::SetCurrentContext(m_ImGuiContext);
 
+    Standard_Integer width, height;
+    aWindow->Size(width, height);
+
     ImGuiIO& io = ImGui::GetIO();
     ImGui::StyleColorsLight();
-    io.Fonts->AddFontFromFileTTF("resources/fonts/Consolas.ttf", 16.0f);
+    float fontSize = (float)height / 100.0f + 4.0f;
+    SPDLOG_INFO("ImGui Font Size: {}", fontSize);
+    io.Fonts->AddFontFromFileTTF("resources/fonts/Consolas.ttf", fontSize);
 
     ImGui_ImplGlfw_InitForOpenGL(aWindow->GetGlfwWindow(), false);
 
@@ -676,6 +681,12 @@ EM_JS(int, jsGetBoundingClientLeft, (), {
 // ================================================================
 EM_BOOL WasmOcctView::onMouseEvent (int theEventType, const EmscriptenMouseEvent* theEvent)
 {
+    ImGuiIO& io = ImGui::GetIO();  
+    if (io.WantCaptureMouse) {
+        myView->Invalidate();
+        return EM_FALSE;
+    }
+
     EmscriptenMouseEvent anEvent = *theEvent;
 
     if (myView.IsNull())
@@ -713,14 +724,6 @@ EM_BOOL WasmOcctView::onMouseEvent (int theEventType, const EmscriptenMouseEvent
         aWindow->ProcessMouseEvent(*this, theEventType, &anEvent);
         return EM_FALSE;
     }
-
-    // ImGuiIO& io = ImGui::GetIO();  
-    // if (!io.WantCaptureMouse) {  // Prevent mouse action when ImGui clicked
-        // return aWindow->ProcessMouseEvent(*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
-    // }
-    // else {
-    //     return EM_TRUE;
-    // }
 
   return aWindow->ProcessMouseEvent(*this, theEventType, theEvent) ? EM_TRUE : EM_FALSE;
 }
