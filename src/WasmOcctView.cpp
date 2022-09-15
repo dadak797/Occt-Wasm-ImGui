@@ -55,6 +55,7 @@
 #include <XCAFDoc_DocumentTool.hxx>
 #include <TopTools_HSequenceOfShape.hxx>
 #include <BRepPrimAPI_MakeBox.hxx>
+#include <BRepPrimAPI_MakeCone.hxx>
 
 #include "AppManager.hpp"
 
@@ -194,7 +195,7 @@ void WasmOcctView::run()
 void WasmOcctView::cleanup()
 {
     // cleanup ImGui
-		ImGui_ImplOpenGL3_DestroyFontsTexture();
+    ImGui_ImplOpenGL3_DestroyFontsTexture();
     ImGui_ImplOpenGL3_DestroyDeviceObjects();
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -554,7 +555,10 @@ void WasmOcctView::redrawView()
         if (ImGui::Begin("my first ImGui window")) {
             ImGui::Text("This is first text...");
             if (ImGui::Button("Make Box")) {
-						    MakeBox(m_Location);
+                MakeBox(m_Location);
+            }
+            if (ImGui::Button("Make Cone")) {
+                MakeCone(m_Location);
             }
             ImGui::DragFloat3("Box location", m_Location);
             ImGui::Separator();
@@ -1357,12 +1361,22 @@ void WasmOcctView::displayGround (bool theToShow)
 
 void WasmOcctView::MakeBox(const float* location)
 {
-		Handle(AIS_Shape) box = new AIS_Shape(BRepPrimAPI_MakeBox(50, 50, 50).Shape());
-		gp_Trsf trsf;
-		gp_Vec trans(location[0], location[1], location[2]);
-		trsf.SetTranslation(trans);
-		box->SetLocalTransformation(trsf);
-		myContext->Display(box, Standard_True);
+    Handle(AIS_Shape) box = new AIS_Shape(BRepPrimAPI_MakeBox(50.0, 50.0, 50.0).Shape());
+    gp_Trsf trsf;
+    gp_Vec trans(location[0], location[1], location[2]);
+    trsf.SetTranslation(trans);
+    box->SetLocalTransformation(trsf);
+    myContext->Display(box, Standard_True);
+}
+
+void WasmOcctView::MakeCone(const float* location)
+{
+    Handle(AIS_Shape) cone = new AIS_Shape(BRepPrimAPI_MakeCone(0.0, 50.0, 50.0).Shape());
+    gp_Trsf trsf;
+    gp_Vec trans(location[0], location[1], location[2]);
+    trsf.SetTranslation(trans);
+    cone->SetLocalTransformation(trsf);
+    myContext->Display(cone, Standard_True);
 }
 
 void WasmOcctView::showScale()

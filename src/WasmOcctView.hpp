@@ -248,6 +248,7 @@ private:
 
   float m_Location[3] { 0.0f, 0.0f, 0.0f };
   void MakeBox(const float* location);
+  void MakeCone(const float* location);
 
 private:
 
